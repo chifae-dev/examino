@@ -1,0 +1,21 @@
+# Node.js
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment files
+.env
+
+# Operating System files
+.DS_Store
+Thumbs.db
+
+# Build artifacts (for frontend and backend)
+build/
+dist/
+
+# Optional: Ignore IDE files
+.vscode/
+.idea/
