@@ -26,7 +26,17 @@ const questionSchema = new mongoose.Schema({
   },
   tolerance: {
     type: Number // en pourcentage (ex: 10)
-  } 
-});
+  } ,
+  // Durée de la question en secondes
+  duree: {
+    type: Number, // en secondes
+    required: true
+  },
+  // Note de la question
+  note: {
+    type: Number,
+    required: true
+  }
+}) 
 
 module.exports = mongoose.model('Question', questionSchema);

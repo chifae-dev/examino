@@ -55,6 +55,17 @@
           <label for="media" class="form-label">Ajouter un média (facultatif)</label>
           <input type="file" id="media" name="media" class="form-control">
         </div>
+        <!-- Champ pour la durée de la question -->
+        <div class="mb-3">
+          <label for="duree" class="form-label">Durée (en secondes)</label>
+          <input type="number" class="form-control" id="duree" name="duree" min="10" max="300" required>
+        </div>
+        <!-- Champ pour la durée de la question -->
+        <div class="mb-3">
+          <label for="note" class="form-label">Note</label>
+          <input type="number" class="form-control" id="note" name="note" required>
+        </div>
+        
          <!-- Zone pour ajouter la réponse directe et la tolérance -->
         <div id="champQuestionDirecte"></div>
 
@@ -133,6 +144,24 @@
 
       formData.append('type', type);
       formData.append('enonce', document.getElementById('enonce').value);
+
+      // Ajout des champs durée et note
+      const duree = document.getElementById('duree').value;
+      const note = document.getElementById('note').value;
+      
+       // Validation3 des champs durée et note
+      if (!duree || isNaN(Number(duree))) {
+        alert("Veuillez entrer une durée valide");
+        return;
+      }
+      if (!note || isNaN(Number(note))) {
+        alert("Veuillez entrer une note valide");
+        return;
+      }
+
+      formData.append('duree', duree);
+      formData.append('note', note);
+
 
       // Ajout du fichier s'il existe
       if (document.getElementById('media').files[0]) {

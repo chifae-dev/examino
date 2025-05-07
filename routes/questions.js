@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer'); // Pour gérer l'envoi de fichiers
 const path = require('path');
 const Question = require('../models/question');
-
+const { console } = require('inspector');
 const router = express.Router();
 
 //Configuration du stockage pour multer
@@ -19,14 +19,15 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 router.post('/', upload.single('media'), async (req, res) => {
   try {
-    const { type, enonce, options, bonnesReponses, reponse, tolerance } = req.body;
-
+    const { type, enonce, options, bonnesReponses, reponse, tolerance, duree, note } = req.body;
     const media = req.file ? req.file.filename : null;
 
     const questionData = {
       type,
       enonce,
-      media
+      media,
+      duree, // Durée de la question (en secondes)
+      note    // Note attribuée à la question
     };
     // appliquer une condition pour gèrer les champs spécifiques à chaque type
     
@@ -68,6 +69,7 @@ router.post('/', upload.single('media'), async (req, res) => {
       questionData.tolerance = tolerance ? Number(tolerance) : 0;
     }
 
+    // Enregistrer la question dans la base de données
     const question = new Question(questionData);
     await question.save();
 
