@@ -42,6 +42,7 @@
           <select id="type" name="type" class="form-select" required>
             <option value="">Choisir un type</option>
             <option value="qcm">QCM</option>
+            <option value="directe">Question directe</option>
           </select>
         </div>
 
@@ -54,6 +55,8 @@
           <label for="media" class="form-label">Ajouter un média (facultatif)</label>
           <input type="file" id="media" name="media" class="form-control">
         </div>
+         <!-- Zone pour ajouter la réponse directe et la tolérance -->
+        <div id="champQuestionDirecte"></div>
 
         <div id="champQCM" class="d-none">
           <div id="optionsContainer" class="mb-3">
@@ -79,6 +82,26 @@
 
     typeSelect.addEventListener('change', () => {
       const type = typeSelect.value;
+
+      champQuestionDirecte.innerHTML = ''; 
+
+
+      if (type === 'directe') {
+        // Ajout des champs pour la réponse et la tolérance
+        champQuestionDirecte.innerHTML = `
+          <div class="mb-3">
+            <label for="reponse" class="form-label">Réponse directe</label>
+            <input type="text" id="reponse" name="reponse" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label for="tolerance" class="form-label">Tolérance (ex: 10%)</label>
+            <input type="number" id="tolerance" name="tolerance" class="form-control" min="0" max="100" step="1" required>
+          </div>
+        `;
+      } else if (type === 'qcm') {
+        champQuestionDirecte.innerHTML = ''; // Ne rien afficher si c'est un QCM
+      }
+          
 
       if (type === 'qcm') {
         champQCM.classList.remove('d-none');
@@ -145,7 +168,24 @@
         formData.append('options', JSON.stringify(options));
         formData.append('bonnesReponses', JSON.stringify(bonnesReponses));
       }
+      // Récupère la réponse et la tolérance
+      if (type === 'directe') {
+        const reponse = document.getElementById('reponse').value;
+        const tolerance = document.getElementById('tolerance').value;
+        // Validation2
+        if (!reponse) {
+          alert('Veuillez entrer une réponse directe');
+          return;
+        }
 
+        if (tolerance === '') {
+          alert('Veuillez entrer un taux de tolérance');
+          return;
+        }
+        // Ajout de la réponse et la tolérance au FormData 
+        formData.append('reponse', reponse);
+        formData.append('tolerance', tolerance);
+      }
       try {
         const response = await fetch('http://localhost:3001/api/questions', {
           method: 'POST',

@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const questionSchema = new mongoose.Schema({
   type: {
     type: String,
-    enum: ['qcm'],
+    enum: ['qcm','directe'],//+type directe
     required: true
   },
   enonce: {
@@ -16,12 +16,17 @@ const questionSchema = new mongoose.Schema({
   },
   options: {
     type: [String],
-    required: true
   },
   bonnesReponses: {
     type: [Number],
-    required: true
-  }
+  },
+  // Champs spécifiques à la question directe
+  reponse: {
+    type: String
+  },
+  tolerance: {
+    type: Number // en pourcentage (ex: 10)
+  } 
 });
 
 module.exports = mongoose.model('Question', questionSchema);
