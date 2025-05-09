@@ -103,7 +103,7 @@ a:hover {
         const data = await response.json();
         localStorage.setItem('token', data.token);
         alert('Connexion réussie');
-        window.location.href = 'page.html';  // Redirection vers la page de l'examen
+        window.location.href = data.redirect;  // Redirection selon le type de l'utilisateur
       } else {
         const message = await response.text();
         alert('Erreur : ' + message);

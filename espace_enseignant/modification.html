@@ -1,0 +1,300 @@
+<!--
+Page de modification d'une question d'examen
+
+Cette interface permet à un enseignant de modifier une question existante,
+qu'elle soit de type QCM ou directe (réponse  avec tolérance).
+Le formulaire s'adapte dynamiquement selon le type de question choisi.
+Les données de la question à modifier sont automatiquement chargées si un ID est présent dans l'URL.
+-->
+
+
+
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Modifier une question</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f4fc;
+        }
+        .btn-violet {
+            background-color: #7642aa;
+            color: white;
+        }
+        .btn-violet:hover {
+            background-color: #8258b4;
+        }
+        .card {
+            background-color: #fff0ff;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(100, 0, 150, 0.1);
+        }
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            margin: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="card p-4">
+            
+            <h2 class="mb-4 text-center">Modifier une Question</h2>
+            
+            <form id="questionForm">
+                <input type="hidden" id="questionId" name="questionId"> <!-- ID de la question à modifier -->
+                
+                <div class="mb-3">
+                    <label for="type" class="form-label">Type de question</label>
+                    <select id="type" name="type" class="form-select" required>
+                        <option value="">Choisir un type</option>
+                        <option value="qcm">QCM</option>
+                        <option value="directe">Question directe</option>
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="enonce" class="form-label">Énoncé</label>
+                    <textarea id="enonce" name="enonce" class="form-control" required></textarea>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="media" class="form-label">Ajouter un média (facultatif)</label>
+                    <input type="file" id="media" name="media" class="form-control">
+                </div>
+                
+                <div class="mb-3">
+                    <label for="duree" class="form-label">Durée (en secondes)</label>
+                    <input type="number" class="form-control" id="duree" name="duree" min="10" max="300" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="note" class="form-label">Note</label>
+                    <input type="number" class="form-control" id="note" name="note" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="examen" class="form-label">Choisir un examen</label>
+                    <select id="examen" name="examen" class="form-select" required>
+                        <option value="">Sélectionner un examen</option>
+                        <!-- Les examens seront ajoutés dynamiquement ici -->
+                    </select>
+                </div>
+                
+                <div id="champQuestionDirecte"></div>
+                
+                <div id="champQCM" class="d-none">
+                    <div id="optionsContainer" class="mb-3">
+                        <label class="form-label">Options</label>
+                        <div class="input-group mb-2">
+                            <input type="text" class="form-control option" placeholder="Option 1">
+                            <div class="input-group-text">
+                                <input class="form-check-input mt-0" type="checkbox" value="0" />
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-violet mb-3" onclick="ajouterOption()">+ Ajouter une option</button>
+                </div>
+                
+                <button type="submit" class="btn btn-violet w-100 mt-4">Modifier la question</button>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        const typeSelect = document.getElementById('type');
+        const champQCM = document.getElementById('champQCM');
+        let questionId = null;
+        
+        // Récupérer et afficher les examens de l'enseignant
+        document.addEventListener('DOMContentLoaded', async () => {
+            const token = localStorage.getItem('token'); 
+            if (!token) {
+                alert('Veuillez vous connecter');
+                return;
+            }
+            try {
+                // Requête pour obtenir la liste des examens
+                const response = await fetch('http://localhost:3001/api/exams/liste-examens', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    // Remplir le select avec les examens récupérés
+                    const selectElement = document.getElementById('examen');
+                    result.forEach(examen => {
+                        const option = document.createElement('option');
+                        option.value = examen._id;
+                        option.textContent = examen.title;
+                        selectElement.appendChild(option);
+                    });
+                } else {
+                    alert(result.message || 'Erreur lors de la récupération des examens');
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert('Erreur serveur');
+            }
+            
+            // Si l'ID de la question est passé en paramètre pour modification
+            const urlParams = new URLSearchParams(window.location.search);
+            const questionIdFromUrl = urlParams.get('id');
+            if (questionIdFromUrl) {
+                questionId = questionIdFromUrl;
+                await loadQuestionData(questionId);// Charger les données de la question à modifier
+            }
+        });
+        
+        // Charger les données d'une question pour la modification
+        async function loadQuestionData(questionId) {
+            try {
+                const response = await fetch(`http://localhost:3001/api/questions/${questionId}`);
+                const question = await response.json();
+                if (response.ok) {
+                    // Préremplir le formulaire avec les données de la question
+                    document.getElementById('questionId').value = question._id;
+                    document.getElementById('type').value = question.type;
+                    document.getElementById('enonce').value = question.enonce;
+                    document.getElementById('duree').value = question.duree;
+                    document.getElementById('note').value = question.note;
+                    
+                    // Affichage des options et réponses selon le type
+                    if (question.type === 'qcm') {
+                        document.getElementById('champQCM').classList.remove('d-none');
+                        document.getElementById('optionsContainer').innerHTML = '';
+                        
+                        question.options.forEach((option, index) => {
+                            ajouterOption(option, question.bonnesReponses.includes(index));
+                        });
+                    } else if (question.type === 'directe') {
+                        document.getElementById('champQuestionDirecte').innerHTML = `
+                        <div class="mb-3">
+                            <label for="reponse" class="form-label">Réponse directe</label>
+                            <input type="text" id="reponse" name="reponse" class="form-control" value="${question.reponse}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="tolerance" class="form-label">Tolérance (ex: 10%)</label>
+                            <input type="number" id="tolerance" name="tolerance" class="form-control" min="0" max="100" step="1" value="${question.tolerance}" required>
+                        </div>
+              
+                        `;
+                    }
+                } else {
+                    alert(result.message || 'Erreur lors du chargement de la question');
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert('Erreur serveur');
+            }
+        }
+        // Lors du changement du type de question, afficher les champs correspondants
+        typeSelect.addEventListener('change', () => {
+            const type = typeSelect.value;
+            document.getElementById('champQuestionDirecte').innerHTML = ''; 
+            
+            if (type === 'directe') {
+                document.getElementById('champQuestionDirecte').innerHTML = `
+                    <div class="mb-3">
+                        <label for="reponse" class="form-label">Réponse directe</label>
+                        <input type="text" id="reponse" name="reponse" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="tolerance" class="form-label">Tolérance (ex: 10%)</label>
+                        <input type="number" id="tolerance" name="tolerance" class="form-control" min="0" max="100" step="1" required>
+                    </div>
+            `;
+            } else if (type === 'qcm') {
+                document.getElementById('champQuestionDirecte').innerHTML = '';
+            }
+            
+            if (type === 'qcm') {
+                champQCM.classList.remove('d-none');
+            } else {
+                champQCM.classList.add('d-none');
+            }
+        });
+        // Ajouter une option dans le formulaire QCM
+        function ajouterOption(option = '', isChecked = false) {
+            const index = document.querySelectorAll('.option').length;
+            const container = document.createElement('div');
+            container.className = 'input-group mb-2';
+            container.innerHTML = `
+                <input type="text" class="form-control option" placeholder="Option ${index + 1}" value="${option}">
+                <div class="input-group-text">
+                    <input class="form-check-input mt-0" type="checkbox" value="${index}" ${isChecked ? 'checked' : ''}>
+                </div>
+            `;
+            document.getElementById('optionsContainer').appendChild(container);
+        }
+        
+        // Lors de la soumission du formulaire, envoyer les données au serveur
+        document.getElementById('questionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData();
+            formData.append('questionId', document.getElementById('questionId').value);
+            formData.append('type', typeSelect.value);
+            formData.append('enonce', document.getElementById('enonce').value);
+            formData.append('duree', document.getElementById('duree').value);
+            formData.append('note', document.getElementById('note').value);
+            
+            if (document.getElementById('media').files[0]) {
+                formData.append('media', document.getElementById('media').files[0]);
+            }
+            
+            // Ajout des options QCM
+            if (typeSelect.value === 'qcm') {
+                const options = [];
+                const bonnesReponses = [];
+                document.querySelectorAll('.option').forEach((input, index) => {
+                    const val = input.value.trim();
+                    if (val) {
+                        options.push(val);
+                        const checkbox = input.parentElement.querySelector('input[type="checkbox"]');
+                        if (checkbox.checked) bonnesReponses.push(index);
+                    }
+                });
+                formData.append('options', JSON.stringify(options));
+                formData.append('bonnesReponses', JSON.stringify(bonnesReponses));
+            }
+            
+            // Ajout de la réponse et tolérance pour les questions directes
+            if (typeSelect.value === 'directe') {
+                formData.append('reponse', document.getElementById('reponse').value);
+                formData.append('tolerance', document.getElementById('tolerance').value);
+            }
+            
+            try {
+                // Requête PUT pour mettre à jour la question
+                const response = await fetch(`http://localhost:3001/api/questions/${questionId}`, {
+                    method: 'PUT',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                alert(result.message || 'Question modifiée');
+                location.reload();
+                // Après la modification de la question
+                if (response.ok) {
+                    const examId = new URLSearchParams(window.location.search).get('examId');
+                    window.location.href = `mes questions.html?examId=${examId}`; // Redirection vers la liste des questions
+                } else {
+                    const errorData = await response.json();
+                    alert(errorData.message || 'Erreur inconnue');
+                }
+                
+                
+            } catch (error) {
+                console.error(error);
+                alert('Erreur serveur.');
+            }
+        });
+    </script>
+</body>
+</html>

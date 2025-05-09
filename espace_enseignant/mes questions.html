@@ -1,0 +1,168 @@
+<!--
+Page qui affiche les questions d'un examen spécifique.
+Les actions de "modification" et "suppression" sont également possibles.
+-->
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Questions de l'Examen</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+    <style>
+        body {   
+            background-color: #fff0ff; 
+            font-family: 'Segoe UI', sans-serif;
+        }
+        .table-purple {
+            border-collapse: collapse;
+        }
+        .table-purple th {
+            background-color: #7642aa;
+            color: white;
+            border: 1px solid #dee2e6;
+        }
+        .table-purple td {
+            border: 1px solid #dee2e6; 
+        }
+        .table-purple tbody tr:hover {
+            background-color: #e2d3f5;
+        }
+        .card {
+            border-radius: 16px;
+            box-shadow: 0 2px 10px rgba(118, 66, 170, 0.2);
+        }
+        .btn-modifier {
+            background-color: #9757d7; 
+            color: white;
+            border: none;
+        }
+        .btn-modifier:hover {
+            background-color: #8258b4; 
+        }
+        .btn-supprimer {
+            background-color:#7642aa; 
+            color: white;
+            border: none;
+        }
+        .btn-supprimer:hover {
+            background-color: #8258b4;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="container py-5">
+        <h2 class="mb-4 text-center">Questions de l'Examen</h2>
+        <div class="card p-4 bg-white">
+            <!-- Tableau pour afficher les questions de l'examen -->
+            <table class="table  table-hover table-purple">
+                <thead class="table-light">
+                    <tr>
+                        <th>Énoncé</th>
+                        <th>Type</th>
+                        <th>Durée</th>
+                        <th>Note</th>
+                        <th>Options / Réponse</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="questionList">
+                    <!-- Questions injectées ici -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <script>
+        // Récupération de l'ID de l'examen depuis l'URL
+        const examId = new URLSearchParams(window.location.search).get('examId'); // Stocke l'examId au moment du clic depuis une autre page
+        // Récupération du token d'authentification stocké dans localStorage
+        const token = localStorage.getItem('token');
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!examId || !token) {
+                alert("Examen ou token manquant");
+                return;
+            }
+            console.log(examId); // Vérifie la valeur de examId
+            
+            fetch(`http://localhost:3001/api/questions/exams/${examId}`, {
+                headers: {
+                    'Authorization': 'Bearer ' + token  // Envoi du token pour l'authentification
+                }
+            })
+            .then(res => res.json())
+            .then(questions => {
+                const tbody = document.getElementById('questionList');
+                questions.forEach(q => {
+                    // Création d'une nouvelle ligne pour chaque question
+                    const row = document.createElement('tr');
+                    let optionsContenu = '';
+                    let bonnesReponsesContenu = '';
+                    let toleranceContenu = '';
+                    // Vérification du type de la question
+                    if (q.type === 'qcm') {
+                        let bonnesReponsesText = q.bonnesReponses.map(index => q.options[index]).join(', ');
+                        optionsContenu = `<strong>Options:</strong> ${q.options.join(', ')}`;
+                        bonnesReponsesContenu = `<strong>Réponses correctes:</strong>${bonnesReponsesText}`; // Affiche le texte des bonnes réponses
+                    } else if (q.type === 'directe') {
+                        toleranceContenu = `<strong>Tolérance:</strong> ${q.tolerance}%<br><br><strong>Réponse:</strong> ${q.reponse}`;
+                    }
+                    
+                    // Injection de la question dans la ligne du tableau
+                    row.innerHTML = `
+                        <td>${q.enonce}</td>
+                        <td>${q.type}</td>
+                        <td>${q.duree}s</td>
+                        <td>${q.note}</td>
+                        <td>
+                            ${optionsContenu}<br><br>
+                            ${bonnesReponsesContenu}
+                            ${toleranceContenu}
+                        </td>
+                        <td>
+                            <button class="btn btn-modifier d-block mt-4" onclick="modifierQuestion('${q._id}')">Modifier</button>
+                            <button class="btn btn-supprimer d-block mt-4" onclick="supprimerQuestion('${q._id}', this)">Supprimer</button>
+                        </td>
+                    `;
+                    tbody.appendChild(row); // Ajouter la ligne au tableau
+                });
+            })
+            .catch(err => {
+                console.error("Erreur lors du chargement des questions:", err); // Gestion des erreurs
+            });
+        });
+        
+        // Fonction qui redirige vers la page de modification d'une question
+        function modifierQuestion(id) {
+            window.location.href =`modification.html?id=${id}&examId=${examId}`; // Redirection vers la page de modification avec l'ID de la question et Id de l'examen 
+        }
+        // Fonction pour supprimer une question
+        function supprimerQuestion(id, btn) {
+            if (confirm("Voulez-vous vraiment supprimer cette question ?")) {
+                // Envoi d'une requête  pour supprimer la question
+                fetch(`http://localhost:3001/api/questions/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': 'Bearer ' + token // Envoi du token pour l'authentification
+                    }
+                })
+                .then(res => {
+                    
+                    if (res.ok) {
+                        alert("Question supprimée !");
+                        btn.closest('tr').remove(); // Suppression de la ligne correspondante dans le tableau
+                        location.reload();
+                    } else {
+                        alert("Erreur lors de la suppression.");
+                    }
+                })
+                .catch(err => {
+                    console.error("Erreur:", err);
+                });
+            }
+        }
+    </script>
+</body>
+</html>

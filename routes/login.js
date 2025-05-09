@@ -30,11 +30,18 @@ router.post('/', async (req, res) => {
     const token = jwt.sign(
       { id: utilisateur._id, email: utilisateur.email, type: utilisateur.type },
       'secretkey',  // clé secrète pour signer le token
-      { expiresIn: '1h' }  // expiration du token dans 1 heure
+      { expiresIn: '2h' }
     );
 
+    // Déterminer la redirection selon le type d'utilisateur
+     
+    // Retourner le token et la redirection
+    const redirect =
+      utilisateur.type === 'enseignant' ? 'espace_enseignant/enseignant.html' : 'espace_etudiant/examen-etudiant.html';
+      res.json({ token, redirect,  prenom: utilisateur.prenom} );
+
+
     // Retourner le token
-    res.json({ token });
   } catch (err) {
     console.error(err);
     res.status(500).send('Erreur serveur');

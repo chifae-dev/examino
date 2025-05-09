@@ -36,7 +36,8 @@ const questionSchema = new mongoose.Schema({
   note: {
     type: Number,
     required: true
-  }
+  },
+  examen: { type: mongoose.Schema.Types.ObjectId, ref: 'Exam', required: true }
 }) 
 
 module.exports = mongoose.model('Question', questionSchema);
