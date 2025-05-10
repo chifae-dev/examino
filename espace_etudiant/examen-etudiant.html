@@ -1,13 +1,13 @@
   <!-- 
-         Cette page permet à un étudiant de passer un examen :
-         Elle vérifie d'abord si l'utilisateur est connecté et est un étudiant
-         Ensuite, elle charge les questions d'un examen spécifique (ID dans l'URL)
-         Elle affiche les questions une par une avec un timer pour chaque
-         À la fin, elle redirige vers la page de résultats
-    -->
-<!DOCTYPE html>
-<html lang="fr">
-<head>
+  Cette page permet à un étudiant de passer un examen :
+  Elle vérifie d'abord si l'utilisateur est connecté et est un étudiant
+  Ensuite, elle charge les questions d'un examen spécifique (ID dans l'URL)
+  Elle affiche les questions une par une avec un timer pour chaque
+  À la fin, elle redirige vers la page de résultats
+  -->
+  <!DOCTYPE html>
+  <html lang="fr">
+  <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Passer l'examen</title>
@@ -44,11 +44,32 @@
                 <p id="enonce" class="fs-5"></p>
                 <div id="options-container"></div>
                 <div class="mt-3">
-                     <!-- Affichage du timer -->
+                    <!-- Affichage du timer -->
                     <span class="timer" id="timer">⌚</span>
                 </div>
                 <!-- Bouton pour passer à la question suivante -->
                 <button id="suivantBtn" class="btn btn-purple mt-4">Question suivante</button>
+            </div>
+        </div>
+    </div>
+    <!-- 
+    modale  utilisée pour "Avant le démarrage de l’examen, une demande d’activation de la géolocalisation est 
+    affichée et les coordonnées sont enregistrées dans le localstorage" Elle est gérée avec Bootstrap 5
+    -->
+    
+    <!-- Modale géolocalisation -->
+    <div class="modal fade" id="geoModal" tabindex="-1" aria-labelledby="geoModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="geoModalLabel">Autorisation de géolocalisation</h5>
+                </div>
+                <div class="modal-body">
+                    Veuillez autoriser l'accès à votre position pour commencer l'examen.
+                </div>
+                <div class="modal-footer">
+                    <button id="geoBtn" class="btn btn-purple">Autoriser</button>
+                </div>
             </div>
         </div>
     </div>
@@ -78,7 +99,32 @@
         
         // Attendre que la page soit entièrement chargée
         document.addEventListener('DOMContentLoaded', async () => { 
-        
+            const geoModal = new bootstrap.Modal(document.getElementById('geoModal'));
+            geoModal.show();
+            
+            document.getElementById('geoBtn').addEventListener('click', () => {
+                if (!navigator.geolocation) {
+                    alert("La géolocalisation n'est pas prise en charge par votre navigateur.");
+                    return;
+                }
+                
+                navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const coords = {
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude
+                    };
+                    localStorage.setItem('geoloc', JSON.stringify(coords));
+                    geoModal.hide();
+                    chargerQuestions(); // commencer l’examen après
+                },
+                (error) => {
+                    alert("Vous devez autoriser la géolocalisation pour passer l'examen.");
+                }
+                );
+            });
+            
+            
             const examId = new URLSearchParams(window.location.search).get('examId'); // ID examen dans l'URL
             console.log(" examId extrait de l'URL :", examId);
             const token = localStorage.getItem('token');// Token JWT
@@ -118,26 +164,28 @@
             let duration;
             let remainingTime;
             let reponsesEtudiant = [];
-
-             // Charger les questions de l'examen
-            fetch(`http://localhost:3001/api/questions/exams/${examId}`, {
-                headers: { 'Authorization': 'Bearer ' + token }
-            })
-            .then(res => res.json())
-            .then(data => {
-                questions = data;
-                afficherQuestion();
-            })
-            .catch(err => {
-                console.error("Erreur de chargement:", err);
-            });
-
-            // Quand on clique sur "Question suivante"
-            suivantBtn.addEventListener('click', () => {
-                sauvegarderReponse(); // Sauvegarde la réponse actuelle
-                questionSuivante();   // Passe à la suivante
-            });
-
+            
+            // Charger les questions de l'examen
+            function chargerQuestions() {
+                fetch(`http://localhost:3001/api/questions/exams/${examId}`, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    questions = data;
+                    afficherQuestion();
+                })
+                .catch(err => {
+                    console.error("Erreur de chargement:", err);
+                });
+                
+                // Quand on clique sur "Question suivante"
+                suivantBtn.addEventListener('click', () => {
+                    sauvegarderReponse(); // Sauvegarde la réponse actuelle
+                    questionSuivante();   // Passe à la suivante
+                });
+            }
+            
             // Affiche une question avec ses options
             function afficherQuestion() {
                 clearInterval(timer);
@@ -154,7 +202,7 @@
                 duration = q.duree;                // <------- récupère la durée depuis la Base de donees
                 remainingTime = duration;
                 timerDisplay.textContent = `⌚${remainingTime}s`;
-
+                
                 // Affiche les options selon le type de question
                 if (q.type === 'qcm') {
                     q.options.forEach(opt => {
@@ -186,7 +234,7 @@
                     }
                 }, 1000);
             }
-
+            
             // Sauvegarder la réponse de l'étudiant
             function sauvegarderReponse() {
                 const q = questions[currentIndex];
@@ -205,7 +253,7 @@
                     reponse: reponse
                 });
             }
-
+            
             // Afficher la question suivante
             function questionSuivante() {
                 currentIndex++;
@@ -213,5 +261,6 @@
             }
         });
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script> <!-- JavaScript de Bootstrap 5-->
 </body>
 </html>
