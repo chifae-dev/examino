@@ -39,8 +39,8 @@ router.post('/', async (req, res) => {
     const redirect =
       utilisateur.type === 'enseignant' ? 'espace_enseignant/enseignant.html' : 'espace_etudiant/examen-etudiant.html';
       res.json({ token, redirect,  prenom: utilisateur.prenom} );
-
-
+    
+    
     // Retourner le token
   } catch (err) {
     console.error(err);

@@ -86,6 +86,7 @@
 
       if (response.ok) {
         alert('Inscription réussie !');
+        location.reload();
       } else {
         const msg = await response.text();
         alert('Erreur : ' + msg);

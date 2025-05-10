@@ -32,11 +32,18 @@ app.use('/api/exams', examRoute); // Ajouter la route de création d'examen
 const questionRoute = require('./routes/questions'); //  Importer la route d'ajout des questions
 app.use('/api/questions', questionRoute); //  Ajouter la route d'ajout des questions
 
+// Route pour les fonctionnalités liées à l'authentification 
+const authRoutes = require('./routes/authRoutes'); // 
+app.use('/api/auth', authRoutes);
+
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/espace_enseignant', express.static('espace_enseignant'));
 
-
+//  pour servir les fichiers statiques de l'application {HTML;JS}
 app.use(express.static(path.join(__dirname)));
+
+app.use('/espace_etudiant', express.static(path.join(__dirname, 'espace_etudiant')));
+
 
 
 

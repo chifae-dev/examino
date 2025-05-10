@@ -1,0 +1,217 @@
+  <!-- 
+         Cette page permet à un étudiant de passer un examen :
+         Elle vérifie d'abord si l'utilisateur est connecté et est un étudiant
+         Ensuite, elle charge les questions d'un examen spécifique (ID dans l'URL)
+         Elle affiche les questions une par une avec un timer pour chaque
+         À la fin, elle redirige vers la page de résultats
+    -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Passer l'examen</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+    <style>
+        body {
+            background-color: #fff0ff;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        .card {
+            border-radius: 16px;
+            box-shadow: 0 2px 10px rgba(118, 66, 170, 0.2);
+        }
+        .btn-purple {
+            background-color: #7642aa;
+            color: white;
+            border: none;
+        }
+        .btn-purple:hover {
+            background-color: #5d3290;
+        }
+        .timer {
+            font-size: 1.5rem;
+            color: #7642aa;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-5">
+        <div class="card p-4 bg-white">
+            <h2 class="text-center mb-4">Examen</h2>
+            <div id="question-container">
+                <p id="enonce" class="fs-5"></p>
+                <div id="options-container"></div>
+                <div class="mt-3">
+                     <!-- Affichage du timer -->
+                    <span class="timer" id="timer">⌚</span>
+                </div>
+                <!-- Bouton pour passer à la question suivante -->
+                <button id="suivantBtn" class="btn btn-purple mt-4">Question suivante</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        // Fonction pour récupérer les données de l'utilisateur connecté
+        async function fetchUserData(token) {
+            try {
+                const response = await fetch("http://localhost:3001/api/auth/me", {
+                    method: "GET",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                });
+                // Si le token est invalide déconnexion
+                if (!response.ok){
+                    localStorage.removeItem('token');
+                    window.location.href = "/connexion.html";
+                    return null;
+                }
+                const user = await response.json();
+                return user; 
+            } catch (err) {
+                console.error(err);
+                return null;
+            }
+        }
+        
+        // Attendre que la page soit entièrement chargée
+        document.addEventListener('DOMContentLoaded', async () => { 
+        
+            const examId = new URLSearchParams(window.location.search).get('examId'); // ID examen dans l'URL
+            console.log(" examId extrait de l'URL :", examId);
+            const token = localStorage.getItem('token');// Token JWT
+            // Vérifier la connexion
+            if (!token) {
+                alert("Vous devez être connecté pour passer l'examen."); 
+                window.location.href = "/connexion.html";
+                return;
+            }
+            const decodedToken = JSON.parse(atob(token.split('.')[1])); // Décoder le payload du JWT
+            console.log(decodedToken);
+            
+            const role = decodedToken.type;
+            const user = await fetchUserData(token) ;// Récupérer l'utilisateur
+            // Si l'utilisateur n'est pas étudiant => déconnexion
+            if(!user || user.role !== 'etudiant' ){
+                alert("Seul un étudiant peut passer l'examen.");
+                localStorage.removeItem('token')
+                window.location.href = "/connexion.html"; // Ou une autre page si nécessaire
+                return;
+            }
+            if (!examId) {
+                alert("L'ID de l'examen est manquant.");
+                return;
+            }
+            
+            // Récupération les éléments du HTML
+            constconteneurQuestion  = document.getElementById('question-container');
+            const enonce = document.getElementById('enonce');
+            const conteneurOptions = document.getElementById('options-container');
+            const timerDisplay = document.getElementById('timer');
+            const suivantBtn = document.getElementById('suivantBtn');
+            
+            let questions = [];
+            let currentIndex = 0;
+            let timer;
+            let duration;
+            let remainingTime;
+            let reponsesEtudiant = [];
+
+             // Charger les questions de l'examen
+            fetch(`http://localhost:3001/api/questions/exams/${examId}`, {
+                headers: { 'Authorization': 'Bearer ' + token }
+            })
+            .then(res => res.json())
+            .then(data => {
+                questions = data;
+                afficherQuestion();
+            })
+            .catch(err => {
+                console.error("Erreur de chargement:", err);
+            });
+
+            // Quand on clique sur "Question suivante"
+            suivantBtn.addEventListener('click', () => {
+                sauvegarderReponse(); // Sauvegarde la réponse actuelle
+                questionSuivante();   // Passe à la suivante
+            });
+
+            // Affiche une question avec ses options
+            function afficherQuestion() {
+                clearInterval(timer);
+                if (currentIndex >= questions.length) {
+                    localStorage.setItem('reponsesEtudiant', JSON.stringify(reponsesEtudiant));
+                    alert("Examen terminé !");
+                    window.location.href = `resultat.html?examId=${examId}`;
+                    return;
+                }
+                
+                const q = questions[currentIndex];  // question actuelle 
+                enonce.textContent = q.enonce;      // affiche l'énoncé
+                conteneurOptions.innerHTML = '';    //vide les anciennes réponses
+                duration = q.duree;                // <------- récupère la durée depuis la Base de donees
+                remainingTime = duration;
+                timerDisplay.textContent = `⌚${remainingTime}s`;
+
+                // Affiche les options selon le type de question
+                if (q.type === 'qcm') {
+                    q.options.forEach(opt => {
+                        const div = document.createElement('div');
+                        div.className = "form-check";
+                        div.innerHTML = `
+                            <input class="form-check-input" type="checkbox" value="${opt}" name="reponse">
+                            <label class="form-check-label">${opt}</label>
+                        `;
+                        conteneurOptions.appendChild(div);
+                    });
+                } else if (q.type === 'directe') {
+                    conteneurOptions.innerHTML = `
+                        <input type="text" class="form-control" placeholder="Votre réponse" name="reponse" />
+                    `;
+                }
+                
+                lancerTimer();// démarre le timer pour cette question
+            }
+            
+            function lancerTimer() {
+                timer = setInterval(() => {
+                    remainingTime--;
+                    timerDisplay.textContent = `⌚ ${remainingTime}s`;
+                    if (remainingTime <= 0) {
+                        clearInterval(timer);
+                        sauvegarderReponse();
+                        questionSuivante();
+                    }
+                }, 1000);
+            }
+
+            // Sauvegarder la réponse de l'étudiant
+            function sauvegarderReponse() {
+                const q = questions[currentIndex];
+                let reponse;
+                if (q.type === 'qcm') {
+                    const checkboxes = document.querySelectorAll('input[name="reponse"]:checked'); // On sélectionne le champ texte de réponse
+                    reponse = Array.from(checkboxes).map(cb => cb.value);
+                } else {
+                    const input = document.querySelector('input[name="reponse"]');
+                    reponse = input ? input.value.trim() : "";
+                }
+                
+                reponsesEtudiant.push({
+                    questionId: q._id,
+                    type: q.type,
+                    reponse: reponse
+                });
+            }
+
+            // Afficher la question suivante
+            function questionSuivante() {
+                currentIndex++;
+                afficherQuestion();
+            }
+        });
+    </script>
+</body>
+</html>

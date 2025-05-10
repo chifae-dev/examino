@@ -85,6 +85,14 @@ a:hover {
   </div>
 
   <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const examId = urlParams.get('examId');
+     // Stocker examId dans localStorage si présent
+    if (examId) {
+      localStorage.setItem('examId', examId);
+      console.log('examId extrait de l’URL :', examId);
+
+    }    
     document.getElementById('loginForm').addEventListener('submit', async function (e) {
       e.preventDefault();
 
@@ -92,7 +100,7 @@ a:hover {
         email: this.email.value,
         password: this.password.value
       };
-
+ 
       const response = await fetch('http://localhost:3001/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -103,7 +111,7 @@ a:hover {
         const data = await response.json();
         localStorage.setItem('token', data.token);
         alert('Connexion réussie');
-        window.location.href = data.redirect;  // Redirection selon le type de l'utilisateur
+        window.location.href = `${data.redirect}?examId=${examId}`;  // Redirection selon le type de l'utilisateur+examId
       } else {
         const message = await response.text();
         alert('Erreur : ' + message);

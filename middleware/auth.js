@@ -1,6 +1,6 @@
 /**
- * Middleware d'authentification JWT
- * Ce middleware vérifie que la requête contient un token JWT valide dans l'en-tête "Authorization".
+  Middleware d'authentification JWT
+ Ce middleware vérifie que la requête contient un token JWT valide dans l'en-tête "Authorization".
  */
 
 
@@ -30,7 +30,12 @@ module.exports = async function (req, res, next) {
     req.user = utilisateur; // injecte l'utilisateur dans la requête
     next(); // passe au middleware suivant ou à la route
   } catch (err) {
-    console.error('Erreur de vérification du token :', err);
-    return res.status(401).json({ message: 'Token invalide' });
+    if (err.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Session expirée. Veuillez vous reconnecter.' });
+    } else {
+      console.error('Erreur de vérification du token :', err);
+      return res.status(401).json({ message: 'Token invalide' });
+    }
   }
 };
+
