@@ -1,5 +1,8 @@
 Examino – Plateforme d'examen en ligne
 
+Ce projet a été **entièrement réalisé seul**, malgré la possibilité de le faire en binôme ou trinôme.  
+car je n’ai pas pu constituer un groupe à temps ):
+
 Ce projet est une application web qui permet la création, la gestion et le passage d'examens en ligne, avec un espace enseignant et un espace étudiant.
 
  Fonctionnalités
