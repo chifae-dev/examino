@@ -109,14 +109,14 @@
                 }
                 
                 navigator.geolocation.getCurrentPosition(
-                (position) => {
+                async (position) => {
                     const coords = {
                         latitude: position.coords.latitude,
                         longitude: position.coords.longitude
                     };
                     localStorage.setItem('geoloc', JSON.stringify(coords));
                     geoModal.hide();
-                    chargerQuestions(); // commencer l’examen après
+                    await chargerQuestions(); // commencer l’examen après
                 },
                 (error) => {
                     alert("Vous devez autoriser la géolocalisation pour passer l'examen.");
@@ -152,7 +152,7 @@
             }
             
             // Récupération les éléments du HTML
-            constconteneurQuestion  = document.getElementById('question-container');
+            const conteneurQuestion  = document.getElementById('question-container');
             const enonce = document.getElementById('enonce');
             const conteneurOptions = document.getElementById('options-container');
             const timerDisplay = document.getElementById('timer');
@@ -178,6 +178,11 @@
                 .catch(err => {
                     console.error("Erreur de chargement:", err);
                 });
+                console.log('Question récupérée:', questions);
+                // Vérifier et afficher les bonnes réponses pour chaque question
+                questions.forEach((q, index) => {
+                    console.log(`Bonne réponse pour la question ${index + 1}:`, q.bonneReponse);
+                });
                 
                 // Quand on clique sur "Question suivante"
                 suivantBtn.addEventListener('click', () => {
@@ -191,12 +196,14 @@
                 clearInterval(timer);
                 if (currentIndex >= questions.length) {
                     localStorage.setItem('reponsesEtudiant', JSON.stringify(reponsesEtudiant));
+                    console.log('Réponses de l\'étudiant:', reponsesEtudiant);
                     alert("Examen terminé !");
                     window.location.href = `resultat.html?examId=${examId}`;
                     return;
                 }
                 
                 const q = questions[currentIndex];  // question actuelle 
+                console.log('Question actuelle:', q);
                 enonce.textContent = q.enonce;      // affiche l'énoncé
                 conteneurOptions.innerHTML = '';    //vide les anciennes réponses
                 duration = q.duree;                // <------- récupère la durée depuis la Base de donees
@@ -205,12 +212,12 @@
                 
                 // Affiche les options selon le type de question
                 if (q.type === 'qcm') {
-                    q.options.forEach(opt => {
+                    q.options.forEach((opt, index) => {
                         const div = document.createElement('div');
                         div.className = "form-check";
                         div.innerHTML = `
-                            <input class="form-check-input" type="checkbox" value="${opt}" name="reponse">
-                            <label class="form-check-label">${opt}</label>
+                            <input class="form-check-input" type="checkbox"  name="option" value="${index}" id="opt${index}">
+                            <label class="form-check-label for= "opt${index}">${opt}</label>
                         `;
                         conteneurOptions.appendChild(div);
                     });
@@ -240,7 +247,7 @@
                 const q = questions[currentIndex];
                 let reponse;
                 if (q.type === 'qcm') {
-                    const checkboxes = document.querySelectorAll('input[name="reponse"]:checked'); // On sélectionne le champ texte de réponse
+                    const checkboxes = document.querySelectorAll('input[name="option"]:checked'); // On sélectionne le champ texte de réponse
                     reponse = Array.from(checkboxes).map(cb => cb.value);
                 } else {
                     const input = document.querySelector('input[name="reponse"]');
@@ -252,6 +259,7 @@
                     type: q.type,
                     reponse: reponse
                 });
+                console.log('Réponse  étudiant:', reponse);
             }
             
             // Afficher la question suivante

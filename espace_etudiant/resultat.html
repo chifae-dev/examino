@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <title>Résultat Examen</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <style>
+        body {
+            background-color: #fff0ff;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        .card {
+            border-radius: 16px;
+            box-shadow: 0 2px 10px rgba(118, 66, 170, 0.2);
+        }
+        .btn-purple {
+            background-color: #7642aa;
+            color: white;
+            border: none;
+        }
+        .btn-purple:hover {
+            background-color: #5d3290;
+        }
+        .text-purple {
+            color: #7642aa; 
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="container py-5">
+        <div class="card p-4 bg-white">
+            <h2 class="text-center mb-4">Résultat de l'examen</h2>
+            <!-- Affichage du score final -->
+            <div id="score" class="text-center fs-4 fw-bold  mb-4"></div>
+            <!-- Détails de chaque question -->
+            <div id="details"></div>
+        </div>
+    </div>
+    
+    <script>
+        // Récupération des paramètres dans l'URL
+        const examId = new URLSearchParams(window.location.search).get('examId');
+        const token = localStorage.getItem('token');
+        const reponsesEtudiant = JSON.parse(localStorage.getItem('reponsesEtudiant'));
+        // Fonction pour normaliser une chaîne 
+        function normalize(str) {
+            return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        }
+        
+        /*The Levenshtein distance is a number that tells you how different two strings are.
+        The higher the number, the more different the two strings are*/
+         
+        // Fonction pour calculer la distance Levenshtein entre deux chaînes 
+        function distanceLevenshtein(a, b) {
+            const dp = Array.from({ length: a.length + 1 }, (_, i) =>
+            Array.from({ length: b.length + 1 }, (_, j) => i === 0 ? j : j === 0 ? i : 0)
+            );
+            // Calcul de la distance entre les deux chaînes
+            for (let i = 1; i <= a.length; i++) {
+                for (let j = 1; j <= b.length; j++) {
+                    dp[i][j] = a[i - 1] === b[j - 1]
+                    ? dp[i - 1][j - 1]
+                    : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+                }
+            }
+            return dp[a.length][b.length]; // Retourne la distance entre les deux chaînes
+        }
+        // Fonction qui vérifie si la réponse de l'étudiant est correcte en tenant compte du taux de tolérance 
+        function estReponseCorrecte(repEtudiant, bonneReponse, toleranceMax) {
+            console.log('Réponse étudiante:', repEtudiant);  // Affiche la réponse étudiante
+            console.log('Bonne réponse:', bonneReponse); 
+            const r1 = normalize(repEtudiant);
+            const r2 = normalize(bonneReponse);
+            const distance = distanceLevenshtein(r1, r2); // Calcule la distance Levenshtein
+            const tolerance = (toleranceMax / 100) * r2.length; // Calcul de la tolérance
+            return distance <= tolerance; // Retourne vrai si la distance est inférieure ou égale à la tolérance
+        } 
+        async function afficherResultat() {
+            console.log("Token:", token);  // Vérifie la valeur de token
+            console.log("Exam ID:", examId);  // Vérifie la valeur de examId
+            console.log("Réponses étudiant:", reponsesEtudiant); 
+            if (!token || !examId || !reponsesEtudiant) {
+                alert("Données manquantes.");
+                window.location.href = "/connexion.html";
+                return;
+            }
+            // Appel API pour récupérer les questions de l'examen
+            const res = await fetch(`http://localhost:3001/api/questions/exams/${examId}`, {
+                headers: { Authorization: "Bearer " + token }
+            });
+            const questions = await res.json();
+            
+            let score = 0;
+            const detailsDiv = document.getElementById("details"); // Div pour afficher les détails des résultats
+            
+            questions.forEach((q, index) => {
+                const rep = reponsesEtudiant.find(r => r.questionId === q._id);
+                let estBonne = false;
+                
+                if (q.type === 'qcm') {
+                    const bonne = [...q.bonnesReponses].sort().join(",");
+                    const etu = (rep?.reponse || []).sort().join(",");
+                    estBonne = bonne === etu;// Compare les réponses de l'étudiant et la bonne réponse
+                } else {
+                    // Pour les questions directes, vérifier la réponse avec tolérance
+                    const toleranceMax = q.tolerance || 0;
+                    estBonne = estReponseCorrecte(rep?.reponse || "", q.reponse, toleranceMax);
+                }
+                // Ajoute des points si la réponse est correcte
+                if (estBonne) {
+                    score += q.note;
+                }
+                
+                // Création d'un bloc HTML pour afficher la réponse et le résultat de la question
+                const bloc = document.createElement("div");
+                bloc.className = "mb-4";
+                bloc.innerHTML = `
+                    <h5>Question ${index + 1} : ${q.enonce}</h5>
+                    <p><strong>Votre réponse :</strong> ${q.type === 'qcm' ? rep?.reponse?.join(', ') : rep?.reponse || 'Aucune'}</p>
+                    <p><strong>Bonne réponse :</strong> ${q.type === 'qcm' ? q.bonnesReponses.join(', ') : q.reponse}</p>
+                    <p><span class="fw-bold text-${estBonne ? 'success' : 'danger'}">${estBonne ? '✔️ Bonne réponse' : '❌ Mauvaise réponse'}</span></p>
+                    <hr />
+                `;
+                detailsDiv.appendChild(bloc);
+            });
+            // Calcul du score final
+            const SCORE= questions.reduce((acc, q) => acc + q.note, 0);
+            const scoreFinal = Math.round((score / SCORE) * 100);
+            const scoreDiv = document.getElementById("score");
+            scoreDiv.classList.add("text-purple");
+            scoreDiv.textContent = `Score final : ${scoreFinal} / 100`;
+            
+            // envoyer les résultats
+            envoyerResultat(scoreFinal);
+        }
+        
+        document.addEventListener("DOMContentLoaded", afficherResultat);
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 
